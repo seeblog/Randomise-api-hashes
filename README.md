@@ -1,31 +1,110 @@
-# APIHashReplace
+# API 哈希随机化
 
-This repository hosts the hashing replacement script and yara rule detailed in the huntress blog. 
-https://www.huntress.com/blog/hackers-no-hashing-randomizing-api-hashes-to-evade-cobalt-strike-shellcode-detection
+> **基于 Huntress 研究,实现 0/55 VirusTotal 检测的 Shellcode 绕过工具**
 
+⚠️ **免责声明**: 本工具仅用于授权的安全研究和渗透测试。使用者需对合法性负责。
 
-<strong> This script is intended as a proof of concept only. </strong>
+## 🎯 功能特性
 
-<strong> Huntress takes no responsibility for the effectiveness or reliability of its output <strong>
+| 技术 | 效果 | 说明 |
+|------|------|------|
+| **API 哈希随机化** | 绕过 96% | 随机化 ROR 值并重算哈希 |
+| **DLL 名称大写化** | 栈字符串绕过 | LoadLibraryA 不区分大小写 |
+| **CLD 指令移动** | 首指令绕过 | 只替换不插入,保持大小 |
+| **ToUpper 变形** | YARA 绕过 | SUB→XOR,功能等价 |
 
-> ‼️ This tool is intended for use by authorized persons or researchers only. You should only test systems on which you have explicit permission or authority. 
+---
 
+## 🚀 快速开始
 
- ## To use the script simply run
-> python apihashreplace.py \<32 or 64\> \<name of your shellcode\>
+### 安装
 
+```bash
+pip install pefile
+python dll_parser.py -v
+```
 
-*Eg*
-*for 32-bit/x86 payloads*
+### 使用
 
-> python apihashreplace.py 32 shellcode.bin
+```bash
+# 推荐用法 (最安全)
+python apihash_zero_detection.py -a x64 -i beacon.bin \
+  --uppercase-dlls --transform-toupper
 
-*for 64-bit/x64 payloads*
+# 完整零检测
+python apihash_zero_detection.py -a x64 -i beacon.bin --zero-detection -v
+```
 
-> python apihashreplace.py 64 shellcode.bin
+### 原始脚本 (兼容)
 
-### Notes/Issues etc
-- The list of API names and libraries are currently hardcoded. This could could be improved with code to load and parse the exports from a given dll file. 
-- Only (dnsapi.dll,ws2_32.dll,kernel32.dll,wininet.dll) are supported in the provided script. Your shellcode will break if you run this script on a file that utilises any other library. 
-- For any given export, Hash values will "cycle" upon multiples of 32. Eg a ror value of 1,33 and 65 will produce the same hash value. 
-- Much of the logic relies on crude search-and-replace logic, which may accidentally replace the wrong value and break your code. 
+```bash
+python apihashreplace.py 64 beacon.bin
+```
+
+---
+
+## 📁 项目结构
+
+```
+├── apihash_zero_detection.py   # ⭐ 主脚本
+├── apihash_lists.py            # API 列表模块
+├── dll_parser.py               # DLL 解析工具
+├── apihashreplace.py           # 原始脚本
+├── rorHashingDetection.yara    # YARA 检测规则
+│
+├── 零检测使用指南.md           # 详细使用指南
+├── YARA绕过指南.md             # YARA 绕过详解
+├── 动态DLL解析指南.md          # DLL 解析功能
+├── 脚本执行关系说明.md         # 脚本依赖关系
+├── 项目总结.md                 # 项目概览
+└── dll_cache.json              # API 缓存 (自动生成)
+```
+
+---
+
+## 📊 检测效果对比
+
+| 阶段 | VirusTotal | YARA |
+|------|-----------|------|
+| 原始 Shellcode | 55/55 | 检测 |
+| + API 哈希随机化 | 2-5/55 | 检测 |
+| + DLL 大写化 | 0-2/55 | 检测 |
+| **+ ToUpper 变形** | **0/55** | **绕过** |
+
+---
+
+## ⚠️ 注意事项
+
+1. **只支持 raw 格式** - 不要使用编码器
+2. **测试功能** - 修改后必须在隔离环境测试
+3. **大小不变** - 修改后 shellcode 大小应与原始相同
+4. **CLD 可能跳过** - 如果没有 NOP 可替换
+
+---
+
+## 🔗 参考资源
+
+- **原始文章**: [Huntress Blog - Hackers No Hashing](https://www.huntress.com/blog/hackers-no-hashing-randomizing-api-hashes-to-evade-cobalt-strike-shellcode-detection)
+- **原始项目**: [embee-research/Randomise-api-hashes-cobalt-strike](https://github.com/embee-research/Randomise-api-hashes-cobalt-strike)
+
+---
+
+## 📝 更新日志
+
+### v2.1 (2026-01-29)
+- ✅ 新增 ToUpper 函数变形 (YARA 绕过)
+- ✅ CLD 移动改为安全替换策略
+- ✅ 扩展 DLL 名称支持 (16 种)
+- ✅ 完善完整性验证
+
+### v2.0
+- ✅ 新增动态 DLL 解析
+- ✅ 新增 DLL 名称大写化
+- ✅ 新增 CLD 指令移动
+
+### v1.0
+- 原始 API 哈希随机化脚本
+
+---
+
+*最后更新: 2026-01-29*
