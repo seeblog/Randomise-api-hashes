@@ -67,7 +67,6 @@ python apihashreplace.py 64 beacon.bin
 ├── 零检测使用指南.md           # 详细使用指南
 ├── YARA绕过指南.md             # YARA 绕过详解
 ├── 动态DLL解析指南.md          # DLL 解析功能
-├── 脚本执行关系说明.md         # 脚本依赖关系
 ├── 项目总结.md                 # 项目概览
 └── dll_cache.json              # API 缓存 (自动生成)
 ```
