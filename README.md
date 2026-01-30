@@ -27,12 +27,15 @@ python dll_parser.py -v
 ### 使用
 
 ```bash
+#生成测试shellcode
+msfvenom -p windows/x64/exec CMD=calc.exe -f raw -o calc.bin
+
 # 推荐用法 (最安全)
 python apihash_zero_detection.py -a x64 -i beacon.bin \
   --uppercase-dlls --transform-toupper
 
 # 完整零检测
-python apihash_zero_detection.py -a x64 -i beacon.bin --zero-detection -v
+python apihash_zero_detection.py -a x64 -i calc.bin --zero-detection -v
 
 # 测试shellcode
 shellcode_load.exe calc_0x82.bin  (可以使用shellcode_load.cpp自行编译)
