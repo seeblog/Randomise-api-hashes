@@ -33,6 +33,9 @@ python apihash_zero_detection.py -a x64 -i beacon.bin \
 
 # 完整零检测
 python apihash_zero_detection.py -a x64 -i beacon.bin --zero-detection -v
+
+# 测试shellcode
+shellcode_load.exe calc_0x82.bin  (可以使用shellcode_load.cpp自行编译)
 ```
 
 ### 原始脚本 (兼容)
