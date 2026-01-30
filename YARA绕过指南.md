@@ -1,10 +1,10 @@
-# YARA 绕过功能使用指南
+# YARA 规则特征修改指南
 
-## 🎯 新增功能
+## 🎯 功能说明
 
-### ToUpper 函数变形 - 绕过 YARA 检测
+### ToUpper 函数变形 - 修改 YARA 检测特征
 
-**原理**: 将 `SUB al, 0x20` 改为 `XOR al, 0x20` 以绕过 YARA 规则检测
+**原理**: 将 `SUB al, 0x20` 改为 `XOR al, 0x20` 以修改 YARA 规则检测的指令特征
 
 **YARA 检测特征**:
 ```yara
@@ -22,10 +22,10 @@ ac 3c 61 7c ?? 34 20
 
 ## 🚀 使用方法
 
-### 方法 1: 完整零检测 (推荐)
+### 方法 1: 完整特征修改 (推荐)
 
 ```bash
-# 自动应用所有绕过技术,包括 YARA 绕过
+# 自动应用所有技术,包括 YARA 特征修改
 python apihash_zero_detection.py -a x64 -i beacon.bin --zero-detection
 
 # 输出示例:
@@ -38,18 +38,11 @@ python apihash_zero_detection.py -a x64 -i beacon.bin --zero-detection
 # 步骤 3: CLD 指令移动
 # ✓ CLD 指令移动: 位置 0 → 位置 11
 #
-# 步骤 3.5: ToUpper 函数变形 (YARA 绕过)
+# 步骤 3.5: ToUpper 函数变形
 # ✓ ToUpper 函数变形: 修改了 1 处
-#   绕过 YARA 特征: $toUpper
-#
-# 零检测绕过技术:
-#   ✓ API 哈希随机化
-#   ✓ DLL 名称大写化
-#   ✓ CLD 指令移动
-#   ✓ ToUpper 函数变形 (YARA 绕过)
 ```
 
-### 方法 2: 仅 YARA 绕过
+### 方法 2: 仅 YARA 特征修改
 
 ```bash
 # 只应用 ToUpper 函数变形
@@ -62,10 +55,10 @@ python apihash_zero_detection.py -a x64 -i beacon.bin --transform-toupper
 ### 方法 3: 自定义组合
 
 ```bash
-# API 哈希 + YARA 绕过
+# API 哈希 + YARA 特征修改
 python apihash_zero_detection.py -a x64 -i beacon.bin --evade-yara
 
-# API 哈希 + DLL 大写 + YARA 绕过
+# API 哈希 + DLL 大写 + YARA 特征修改
 python apihash_zero_detection.py -a x64 -i beacon.bin --uppercase-dlls --evade-yara
 
 # 所有功能独立启用
@@ -77,7 +70,7 @@ python apihash_zero_detection.py -a x64 -i beacon.bin \
 
 ---
 
-## 🧪 测试 YARA 绕过
+## 🧪 测试 YARA 特征修改
 
 ### 使用 YARA 命令
 
@@ -91,7 +84,7 @@ yara rorHashingDetection.yara beacon.bin
 
 # 3. 扫描修改后的 shellcode
 yara rorHashingDetection.yara beacon_0x7c.bin
-# 预期输出: (无输出,表示未检测到)
+# 可能输出: (取决于 YARA 规则的其他条件)
 ```
 
 ### 安装 YARA (如果需要)
@@ -109,30 +102,6 @@ brew install yara
 # Python 库
 pip install yara-python
 ```
-
----
-
-## 📊 绕过效果
-
-### YARA 规则条件
-
-```yara
-condition:
-    (filesize < 100KB) and
-    $toUpper and           // 已绕过 ✓
-    1 of ($ror*)          // 仍然匹配
-```
-
-**结果**: YARA 检测失败,因为 `$toUpper` 不再匹配
-
-### 检测率对比
-
-| 版本 | VirusTotal | YARA |
-|------|-----------|------|
-| 原始 | 28/55 | ✓ 检测到 |
-| API 哈希随机化 | 2/55 | ✓ 检测到 |
-| + DLL 大写 + CLD | 0/55 | ✓ 检测到 |
-| **+ YARA 绕过** | **0/55** | **✗ 绕过** ✅ |
 
 ---
 
@@ -226,10 +195,10 @@ run
 ### 所有 YARA 相关参数
 
 ```bash
-# 完整零检测 (包含 YARA 绕过)
+# 完整特征修改 (包含 YARA 特征修改)
 --zero-detection
 
-# 仅 YARA 绕过
+# 仅 YARA 特征修改
 --evade-yara
 
 # 仅 ToUpper 变形 (与 --evade-yara 等效)
@@ -250,8 +219,8 @@ python apihash_zero_detection.py -h
 
 可选参数:
   -o, --output FILE             输出文件
-  --zero-detection              完整零检测绕过
-  --evade-yara                  YARA 绕过
+  --zero-detection              完整特征修改
+  --evade-yara                  YARA 特征修改
   --uppercase-dlls              DLL 名称大写化
   --move-cld                    CLD 指令移动
   --transform-toupper           ToUpper 函数变形
@@ -265,28 +234,24 @@ python apihash_zero_detection.py -h
 
 ## 📝 总结
 
-### 完整的零检测绕过栈
+### 完整的特征修改栈
 
 ```
-1. API 哈希随机化    ✓ 绕过基于哈希值的检测
+1. API 哈希随机化    ✓ 修改基于哈希值的特征
 2. DLL 名称大写化    ✓ 破坏栈字符串特征
 3. CLD 指令移动      ✓ 破坏首指令特征
-4. ToUpper 函数变形  ✓ 绕过 YARA 检测 ⭐ 新增
+4. ToUpper 函数变形  ✓ 修改 YARA 检测特征 ⭐
 ```
 
 ### 推荐使用
 
 ```bash
-# 一键完整绕过
+# 一键完整特征修改
 python apihash_zero_detection.py -a x64 -i beacon.bin --zero-detection -v
 ```
 
-### 预期结果
-
-- VirusTotal: **0/55** ✅
-- YARA 检测: **绕过** ✅
-- 功能: **完全正常** ✅
+⚠️ **重要提醒**: 这些技术用于修改已知的静态特征，**不保证能绕过所有检测**。实际效果取决于多种因素。
 
 ---
 
-*最后更新: 2026-01-28*
+*最后更新: 2026-01-30*
