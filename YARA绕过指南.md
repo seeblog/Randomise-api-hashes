@@ -285,7 +285,6 @@ python apihash_zero_detection.py -a x64 -i beacon.bin --zero-detection -v
 
 - VirusTotal: **0/55** ✅
 - YARA 检测: **绕过** ✅
-- Antiscan: **0/13** ✅
 - 功能: **完全正常** ✅
 
 ---
